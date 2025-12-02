@@ -70,10 +70,20 @@ app.get("/", (c) => c.text("Hello Hono + Netlify Edge!"));
 // Proxy route
 app.get("/api", async (c) => {
   const origin = c.req.query("origin"); // use ?origin= to specify the file URL
-  if (!origin) {
-    return c.json({ error: "Missing URL" }, { status: 400 });
+  const id = c.req.query("id"); // use ?id= to specify the file ID
+
+  // create origin URL depending on ?origin or ?id used
+  let targetUrl: string | null = null;
+  if (origin) {
+    targetUrl = origin;
+  } else if (id) {
+    targetUrl = `https://pixeldrain.com/api/file/${id}?download`;
   }
-  const parsedUrl = new URL(origin);
+
+  if (!targetUrl) {
+    return c.json({ error: "Missing required parameter" }, { status: 400 });
+  }
+  const parsedUrl = new URL(targetUrl);
   const allowedHosts = [
     "pixeldrain.com",
     "pixeldra.in",
@@ -89,7 +99,7 @@ app.get("/api", async (c) => {
     return c.json({ error: "Domain not allowed" }, { status: 403 });
   }
 
-  const response = await fetch(origin, { redirect: "follow" });
+  const response = await fetch(targetUrl, { redirect: "follow" });
   if (!response.ok) {
     return new Response(JSON.stringify({ error: "Failed to fetch file" }), {
       status: response.status,
